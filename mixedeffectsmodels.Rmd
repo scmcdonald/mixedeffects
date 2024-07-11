@@ -1,0 +1,254 @@
+---
+title: "Checking Mixed Effects Model"
+output: html_document
+date: "2024-07-01"
+---
+
+```{r setup, include=FALSE, warning=F, message = F}
+library(lme4)
+library(tidyverse)
+library(mvtnorm)
+
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Model
+
+Mixed effects model with two fixed effects (including an intercept) and correlation within individual. 
+
+
+
+
+$$y_{it} = \beta_0 + x_{it}\beta_1  +  \gamma_i + \epsilon_{it}$$
+This is the matrix form with $3$ individuals and $2$ obserations per individual. 
+
+\[
+\begin{bmatrix}
+y_{11} \\
+y_{12} \\
+y_{21} \\
+y_{22} \\
+y_{31} \\
+y_{32}
+\end{bmatrix} = 
+\beta_0 \begin{bmatrix}
+1 \\
+1 \\
+1 \\
+1 \\
+1 \\
+1
+\end{bmatrix} +\beta_1 \begin{bmatrix}
+x_{11} \\
+x_{12} \\
+x_{21} \\
+x_{22} \\
+x_{31} \\
+x_{32}
+\end{bmatrix} + 
+\begin{bmatrix}
+1 & 0 & 0 \\
+1 & 0 & 0 \\
+0 & 1 & 0 \\
+0 & 1 & 0 \\
+0 & 0 & 1 \\
+0 & 0 & 1
+\end{bmatrix}
+\begin{bmatrix}
+\gamma_1 \\
+\gamma_2 \\
+\gamma_3
+\end{bmatrix} +
+\begin{bmatrix}
+\epsilon_{11} \\
+\epsilon_{12} \\
+\epsilon_{21} \\
+\epsilon_{22} \\
+\epsilon_{31} \\
+\epsilon_{32}
+\end{bmatrix}
+\]
+
+with $\gamma_i \sim N(0, \sigma^2_\gamma)$ and $\epsilon_i \sim N(0, \sigma^2_\epsilon)$.
+
+## Data Simulation Functions
+
+First we need a function that produces the intra-individual correlation design matrix $\mathbf{Z}$:
+
+```{r}
+# get intra-individual correlation design matrix
+# kronecker product produces this
+
+generate_random_effects_block_matrix <- function(n, m) {
+  
+  # create a block of ones of size m x 1
+  block <- matrix(1, nrow = m, ncol = 1)
+  
+  # get z matrix
+  z <- kronecker(diag(n), block)
+  
+  return(z)
+}
+
+# test
+generate_random_effects_block_matrix(3, 2)
+```
+
+We will generate data as follows:
+
+$$\mathbf{x} = \begin{bmatrix} x_{11} \\
+x_{12} \\
+... \\
+x_{1m} \\
+... \\
+x_{n1} \\
+... \\
+x_{nm}\\
+\end{bmatrix} \sim MVN(0, I_{nm})$$
+
+$\pmb{\gamma} \sim MVN(0, \sigma_u^2 I_n)$
+
+$\pmb{\epsilon} \sim MVN(0, \sigma_e^2 I_{nm})$
+
+
+```{r}
+generate_data <- function(n, m, beta0, beta1, sigma_u, sigma_e) {
+  #individual
+  id <- rep(1:n, each = m)
+  
+  # design matrix
+  x <- rmvnorm(m*n, mean = 0, diag(1))
+  
+  # random effects design matrix
+  z <- generate_random_effects_block_matrix(n, m)
+  
+  # random effect
+  u <- rmvnorm(n, 0, sigma_u * diag(1))
+  
+  # error
+  epsilon <- rmvnorm(n*m, 0, sigma_e * diag(1))
+  
+  # calculate y
+  y <- beta0 + beta1 * x + z %*% u + epsilon
+  
+  # return data
+  data.frame(y = y, x = x, id = id)
+}
+
+# test
+generate_data(n = 3, m = 2, beta0 = 1, beta1 = 2, sigma_u = 1, sigma_e = 1)
+```
+
+
+## Simulations
+
+Note that I am running a mixed effects model with random intercept, but not random slope. 
+
+```{r}
+# simulation
+simulation <- function(ns, m, beta0, beta1, sigma_u, sigma_e, num_simulations){
+  
+  # we want to construct a dataframe with number of individuals and
+  # correlation for beta0 vs sigma_u, correlation for beta1 vs sigma_u
+  
+  out <- data.frame(n = rep(ns, each = 2), 
+                    beta_vs_sigmau = rep(c("beta0_vs_sigmau", "beta1_vs_sigmau"),  length(ns)), 
+                    corr = NA_real_)
+  # repeat for each individual size n
+  for(i in ns){
+    
+    # within each individual, repeat (1000?) times
+    sims <- replicate(num_simulations, {
+      
+      # simulate data
+      data <- generate_data(i, m, beta0, beta1, sigma_u, sigma_e)
+      
+      # fit model - this is random intercept, but not random slope
+      # REML = F ensures we run ML not REML
+      model <- lmer(y ~ x + (1 | id), data = data, REML = FALSE)
+      
+      # extract estimates
+      return(c(beta_0 = fixef(model)[1], 
+               beta1 = fixef(model)[2], 
+               sigma_u = VarCorr(model)$id[1]))
+    })
+    
+    # get correlations
+    corrs <- cor(t(sims))
+    
+    # 2 is beta0 vs sigmau, 3 is beta1 vs sigmau
+    corrs <- corrs[lower.tri(corrs)][2:3]
+    
+    # store values
+    out[out$n == i, 3] <- corrs
+    
+  }
+  
+  gg <- ggplot(out, aes(x = n, group = beta_vs_sigmau, y = corr, color = beta_vs_sigmau)) + 
+    geom_hline(yintercept = 0, color = "grey70", linetype = "dashed") +
+    geom_line() + 
+    geom_point() + 
+    theme_minimal() + 
+    labs(y = "Correlation", x = "Number of Individuals", color = "Comparison")
+  
+  print(gg)
+  
+}
+```
+
+Replicate for $n = \{10, 50, 100\}$ for $m = 10$. Within each $n$, replicate 1000 times. 
+
+For each simulation, we will fix $\sigma_\epsilon^2 = 1$, $\beta_0 = 1$, $m = 10$ observations per individual, and repeat the model fitting $100$ times per individual size $n$. 
+
+We will vary $\beta_1$ and $\sigma_\gamma^2$.
+
+
+### Equal Beta1 and sigma gamma
+
+```{r}
+ns <- c(10, 20 , 30, 50, 100, 150)#c(10, 25, 50, 75, 100, 200, 300, 400)
+nsims = 100
+m = 20
+beta0 = 0
+sigma_e = 1
+
+simulation(n = ns, 
+           m = m, beta0 = beta0, sigma_e = sigma_e,
+           beta1 = 1, sigma_u = 1, 
+           num_simulations =nsims)
+```
+
+
+### Large Beta1 
+
+
+```{r}
+simulation(n =ns, m = m, beta0 = beta0, beta1 = 10, 
+           sigma_u = 1, sigma_e = sigma_e, num_simulations =nsims)
+```
+
+
+### Large sigma_u 
+
+
+```{r}
+simulation(n = ns, m = m, beta0 = beta0, beta1 = 1, 
+           sigma_u = 10, sigma_e = sigma_e, num_simulations =nsims)
+```
+
+
+
+### Large sigma_u and beta1
+
+
+```{r}
+simulation(n = ns, m = m, beta0 = beta0, beta1 = 10,
+           sigma_u = 10, sigma_e = sigma_e, num_simulations =nsims)
+```
+
+
+
+## Questions
+
+boundary (singular) fit: see help('isSingular')
