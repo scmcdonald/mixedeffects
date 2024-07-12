@@ -1,38 +1,20 @@
----
-title: "Checking Mixed Effects Model"
-output:
-  md_document:
-    variant: markdown_github
-date: "2024-07-01"
----
-
-```{r setup, include=FALSE, warning=F, message = F}
-library(lme4)
-library(tidyverse)
-library(mvtnorm)
-
-knitr::opts_chunk$set(echo = TRUE)
-```
-
-
 ## Model
 
-Mixed effects model with two fixed effects (including an intercept) and correlation within individual. 
+Mixed effects model with two fixed effects (including an intercept) and
+correlation within individual.
 
+*y*<sub>*i**t*</sub> = *β*<sub>0</sub> + *x*<sub>*i**t*</sub>*β*<sub>1</sub> + *γ*<sub>*i*</sub> + *ϵ*<sub>*i**t*</sub>
+This is the matrix form with 3 individuals and 2 obserations per
+individual.
 
-
-
-$$y_{it} = \beta_0 + x_{it}\beta_1  +  \gamma_i + \epsilon_{it}$$
-This is the matrix form with $3$ individuals and $2$ obserations per individual. 
-
-\[
+$$
 \begin{bmatrix}
-y_{11} \\
-y_{12} \\
-y_{21} \\
-y_{22} \\
-y_{31} \\
-y_{32}
+y\_{11} \\
+y\_{12} \\
+y\_{21} \\
+y\_{22} \\
+y\_{31} \\
+y\_{32}
 \end{bmatrix} = 
 \beta_0 \begin{bmatrix}
 1 \\
@@ -42,12 +24,12 @@ y_{32}
 1 \\
 1
 \end{bmatrix} +\beta_1 \begin{bmatrix}
-x_{11} \\
-x_{12} \\
-x_{21} \\
-x_{22} \\
-x_{31} \\
-x_{32}
+x\_{11} \\
+x\_{12} \\
+x\_{21} \\
+x\_{22} \\
+x\_{31} \\
+x\_{32}
 \end{bmatrix} + 
 \begin{bmatrix}
 1 & 0 & 0 \\
@@ -63,22 +45,24 @@ x_{32}
 \gamma_3
 \end{bmatrix} +
 \begin{bmatrix}
-\epsilon_{11} \\
-\epsilon_{12} \\
-\epsilon_{21} \\
-\epsilon_{22} \\
-\epsilon_{31} \\
-\epsilon_{32}
+\epsilon\_{11} \\
+\epsilon\_{12} \\
+\epsilon\_{21} \\
+\epsilon\_{22} \\
+\epsilon\_{31} \\
+\epsilon\_{32}
 \end{bmatrix}
-\]
+$$
 
-with $\gamma_i \sim N(0, \sigma^2_\gamma)$ and $\epsilon_i \sim N(0, \sigma^2_\epsilon)$.
+with *γ*<sub>*i*</sub> ∼ *N*(0,*σ*<sub>*γ*</sub><sup>2</sup>) and
+*ϵ*<sub>*i*</sub> ∼ *N*(0,*σ*<sub>*ϵ*</sub><sup>2</sup>).
 
 ## Data Simulation Functions
 
-First we need a function that produces the intra-individual correlation design matrix $\mathbf{Z}$:
+First we need a function that produces the intra-individual correlation
+design matrix **Z**:
 
-```{r}
+``` r
 # get intra-individual correlation design matrix
 # kronecker product produces this
 
@@ -97,24 +81,31 @@ generate_random_effects_block_matrix <- function(n, m) {
 generate_random_effects_block_matrix(3, 2)
 ```
 
+    ##      [,1] [,2] [,3]
+    ## [1,]    1    0    0
+    ## [2,]    1    0    0
+    ## [3,]    0    1    0
+    ## [4,]    0    1    0
+    ## [5,]    0    0    1
+    ## [6,]    0    0    1
+
 We will generate data as follows:
 
-$$\mathbf{x} = \begin{bmatrix} x_{11} \\
-x_{12} \\
+$$\mathbf{x} = \begin{bmatrix} x\_{11} \\
+x\_{12} \\
 ... \\
-x_{1m} \\
+x\_{1m} \\
 ... \\
-x_{n1} \\
+x\_{n1} \\
 ... \\
-x_{nm}\\
-\end{bmatrix} \sim MVN(0, I_{nm})$$
+x\_{nm}\\
+\end{bmatrix} \sim MVN(0, I\_{nm})$$
 
-$\pmb{\gamma} \sim MVN(0, \sigma_u^2 I_n)$
+**γ** ∼ *M**V**N*(0,*σ*<sub>*u*</sub><sup>2</sup>*I*<sub>*n*</sub>)
 
-$\pmb{\epsilon} \sim MVN(0, \sigma_e^2 I_{nm})$
+**ϵ** ∼ *M**V**N*(0,*σ*<sub>*e*</sub><sup>2</sup>*I*<sub>*n**m*</sub>)
 
-
-```{r}
+``` r
 generate_data <- function(n, m, beta0, beta1, sigma_u, sigma_e) {
   #individual
   id <- rep(1:n, each = m)
@@ -142,12 +133,20 @@ generate_data <- function(n, m, beta0, beta1, sigma_u, sigma_e) {
 generate_data(n = 3, m = 2, beta0 = 1, beta1 = 2, sigma_u = 1, sigma_e = 1)
 ```
 
+    ##           y           x id
+    ## 1  3.294890 -0.03551660  1
+    ## 2  3.124536  0.03785972  1
+    ## 3  1.367373  0.19848649  2
+    ## 4 -2.246186 -0.51763856  2
+    ## 5  1.642795 -0.37571031  3
+    ## 6  2.075062 -0.03924406  3
 
 ## Simulations
 
-Note that I am running a mixed effects model with random intercept, but not random slope. 
+Note that I am running a mixed effects model with random intercept, but
+not random slope.
 
-```{r}
+``` r
 # simulation
 simulation <- function(ns, m, beta0, beta1, sigma_u, sigma_e, num_simulations){
   
@@ -199,20 +198,22 @@ simulation <- function(ns, m, beta0, beta1, sigma_u, sigma_e, num_simulations){
 }
 ```
 
-For each number of individual $n = \{10,  25, 50, 75, 100, 150, 200, 250,  300, 350, 400, 450, 500\}$, we will generate data and fit our model 1000 times. Then we will take the correlation of those simulations. 
+For each number of individual
+*n* = {10, 25, 50, 75, 100, 150, 200, 250, 300, 350, 400, 450, 500}, we
+will generate data and fit our model 1000 times. Then we will take the
+correlation of those simulations.
 
+For each simulation, we fix that each individual has *m* = 20
+observations and we will fix *σ*<sub>*ϵ*</sub><sup>2</sup> = 1,
+*β*<sub>0</sub> = 1.
 
-For each simulation, we fix that each individual has $m = 20$ observations and we will fix $\sigma_\epsilon^2 = 1$, $\beta_0 = 1$.
-
-We will vary $\beta_1$ and $\sigma_\gamma^2$.
-
+We will vary *β*<sub>1</sub> and *σ*<sub>*γ*</sub><sup>2</sup>.
 
 ### Case 1: Equal Beta1 and sigma gamma
 
-Here we set $\beta_1 = \sigma^2_\gamma = 1$.
+Here we set *β*<sub>1</sub> = *σ*<sub>*γ*</sub><sup>2</sup> = 1.
 
-
-```{r}
+``` r
 ns <- c(10,  25, 50, 75, 100, 150, 200, 250,  300, 350, 400, 450, 500)
 nsims = 1000
 m = 20
@@ -221,7 +222,7 @@ sigma_e = 1
 set.seed(1)
 ```
 
-```{r,eval = F}
+``` r
 sim0 <- simulation(n = ns, 
            m = m, beta0 = beta0, sigma_e = sigma_e,
            beta1 = 1, sigma_u = 1, 
@@ -229,62 +230,70 @@ sim0 <- simulation(n = ns,
 saveRDS(sim0, file = "output/sim0.rds")
 ```
 
-```{r}
+``` r
 readRDS(file ="output/sim0.rds" )
 ```
 
+![](mixedeffectsmodels_files/figure-markdown_github/unnamed-chunk-6-1.png)
 
-### Large Beta1 
+### Large Beta1
 
+Here we set *β*<sub>1</sub> = 10 and *σ*<sub>*γ*</sub><sup>2</sup> = 1.
 
-Here we set $\beta_1 = 10$ and $\sigma^2_\gamma = 1$.
-
-
-```{r, eval = F}
+``` r
 sim1 <- simulation(n =ns, m = m, beta0 = beta0, beta1 = 10, 
            sigma_u = 1, sigma_e = sigma_e, num_simulations =nsims)
 saveRDS(sim1, file = "output/sim1.rds")
-
 ```
 
-```{r}
+``` r
 readRDS(file ="output/sim1.rds" )
 ```
 
-### Large sigma_u 
+![](mixedeffectsmodels_files/figure-markdown_github/unnamed-chunk-8-1.png)
 
-Here we set $\beta_1 = 1$ and $\sigma^2_\gamma = 10$.
+### Large sigma_u
 
-```{r, eval = F}
+Here we set *β*<sub>1</sub> = 1 and *σ*<sub>*γ*</sub><sup>2</sup> = 10.
+
+``` r
 sim2 <- simulation(n = ns, m = m, beta0 = beta0, beta1 = 1, 
            sigma_u = 10, sigma_e = sigma_e, num_simulations =nsims)
 saveRDS(sim2, file = "output/sim2.rds")
 ```
 
-```{r}
+``` r
 readRDS(file ="output/sim2.rds" )
 ```
 
+![](mixedeffectsmodels_files/figure-markdown_github/unnamed-chunk-10-1.png)
+
 ### Large sigma_u and beta1
 
-Here we set $\beta_1 = 10$ and $\sigma^2_\gamma = 10$.
+Here we set *β*<sub>1</sub> = 10 and *σ*<sub>*γ*</sub><sup>2</sup> = 10.
 
-
-```{r, eval = F}
+``` r
 sim3 <- simulation(n = ns, m = m, beta0 = beta0, beta1 = 10,
            sigma_u = 10, sigma_e = sigma_e, num_simulations =nsims)
 saveRDS(sim3, file = "output/sim3.rds")
 ```
 
-```{r}
+``` r
 readRDS(file ="output/sim3.rds" )
 ```
 
+![](mixedeffectsmodels_files/figure-markdown_github/unnamed-chunk-12-1.png)
+
 ## Questions
 
+-   Sometimes I get errors regarding singular fit or failed to converge.
+    I am not sure what this means or how to avoid it.
 
-- Sometimes I get errors regarding singular fit or failed to converge. I am not sure what this means or how to avoid it.
+-   I think I might try the mixed effects model with random intercept
+    and random slope, to see if it makes a difference
 
-- I think I might try the mixed effects model with random intercept and random slope, to see if it makes a difference
-
-- The take away is that $\sigma_\gamma^2$ and $\beta_1, \beta_0$ are correlated, but I am wondering if we should see a specific pattern as $n$ grows. For example, should we expect that as $n$ increase, correlation is stronger (and in one direction?
+-   The take away is that *σ*<sub>*γ*</sub><sup>2</sup> and
+    *β*<sub>1</sub>, *β*<sub>0</sub> are correlated, but I am wondering
+    if we should see a specific pattern as *n* grows. For example,
+    should we expect that as *n* increase, correlation is stronger (and
+    in one direction?
