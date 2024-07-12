@@ -1,8 +1,6 @@
 ---
 title: "Checking Mixed Effects Model"
-output:
-  md_document:
-    variant: markdown_github
+output: html_document
 date: "2024-07-01"
 ---
 
@@ -216,7 +214,7 @@ Here we set $\beta_1 = \sigma^2_\gamma = 1$.
 ns <- c(10,  25, 50, 75, 100, 150, 200, 250,  300, 350, 400, 450, 500)
 nsims = 1000
 m = 20
-beta0 = 0
+beta0 = 1
 sigma_e = 1
 set.seed(1)
 ```
