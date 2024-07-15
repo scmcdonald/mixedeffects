@@ -1,6 +1,6 @@
 ---
 title: "Checking Mixed Effects Model"
-output: html_document
+output: github_document
 date: "2024-07-01"
 ---
 
@@ -8,12 +8,16 @@ date: "2024-07-01"
 library(lme4)
 library(tidyverse)
 library(mvtnorm)
+library(calculus)
 
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
 
-## Model
+
+
+
+# Model
 
 Mixed effects model with two fixed effects (including an intercept) and correlation within individual. 
 
@@ -141,148 +145,280 @@ generate_data(n = 3, m = 2, beta0 = 1, beta1 = 2, sigma_u = 1, sigma_e = 1)
 ```
 
 
-## Simulations
+# New work - Steps
 
-Note that I am running a mixed effects model with random intercept, but not random slope. 
+1. Fit model using `lme4`, using the _REML = F_ to optimize log-likelihood. 
+
+2. Extract $\hat{\theta}_{MLE} = \{\hat{\beta}_0, \hat{\beta}_1, \hat{\sigma}_{\gamma}^2, \hat{\sigma}_{\epsilon}^2\}$ from the model output.
+
+3. Plug into function thtat computes $\hat{\Sigma} = \frac{1}{n} J(\hat\theta_{MLE})^{-1}$ by taking the Hessian of the log-likelihood, plugs in our MLE, and divided by $n$.
+
+Note that first I had to update the log-likelihood as a function of n individual and m observations per user, because I had previously just done it for $n = 3$ amd $m =2 $. The final answer is below and the work is in the [overleaf file](https://www.overleaf.com/read/jmnzvhwsnwqq#81156c) section 5.1.1.
+
+\begin{align*}
+    \ell = & = -\frac{nm}{2} \log(2\pi) - \frac{n}{2} \left((m-1)\log(\sigma^2_\epsilon) + \log( \sigma^2_\epsilon + m \sigma_\gamma^2) \right) \\
+    &\quad \quad-  \frac{1}{2\sigma_\epsilon^2} \left[ \sum_{i = 1}^n \sum_{j = 1}^m (y_{ij}  - \beta_0 - \beta_1 x_{ij})^2 -  \frac{\sigma_\gamma^{2} }{\sigma_\epsilon^{2} + m\sigma^{2}_\gamma }  \sum_{i = 1}^n \left(\sum_{j= 1}^m (y_{ij} - \beta_0 - \beta_1 x_{ij})\right)^2 \right]\\
+\end{align*}
+
+## Simulation
 
 ```{r}
-# simulation
-simulation <- function(ns, m, beta0, beta1, sigma_u, sigma_e, num_simulations){
+set.seed(1)
+
+# generate data
+data <- generate_data(n = 50, m = 20, 
+                      beta0 = 1, beta1 = 2, 
+                      sigma_u = 1, sigma_e = 1)
+
+# fit model
+mod <- lmer(y ~ x + (1 | id), data = data, REML = FALSE)
+summary(mod)
+
+# extract MLEs
+
+# fixed effects
+fixef(mod)
+beta_hats <- unname(fixef(mod))
+
+# variance of the random effect 
+VarCorr(mod)
+VarCorr(mod)$id[1]
+sigma_u2_hat <- VarCorr(mod)$id[1]^2
+
+# variance of the error
+sigma_e2_hat <- summary(mod)$sigma^2
+
+sigma_e2_hat
+```
+
+```{r}
+# define log likelihood function for differentiation
+
+ll <- function(beta0, beta1, su2, se2,n = 50,m = 20) {
+
+  term1 <- -(n/2) * ((m-1)*log(se2) + log(se2 + m *su2))
   
-  # we want to construct a dataframe with number of individuals and
-  # correlation for beta0 vs sigma_u, correlation for beta1 vs sigma_u
+  data$eq <- data$y - beta0 - (beta1 * data$x)
+
+  sum_within_id <- aggregate(eq ~ id, data = data, FUN = sum)
   
-  out <- data.frame(n = rep(ns, each = 2), 
-                    beta_vs_sigmau = rep(c("beta0_vs_sigmau", "beta1_vs_sigmau"),  length(ns)), 
-                    corr = NA_real_)
-  # repeat for each individual size n
-  for(i in ns){
-    
-    # within each individual, repeat (1000?) times
-    sims <- replicate(num_simulations, {
-      
-      # simulate data
-      data <- generate_data(i, m, beta0, beta1, sigma_u, sigma_e)
-      
-      # fit model - this is random intercept, but not random slope
-      # REML = F ensures we run ML not REML
-      model <- lmer(y ~ x + (1 | id), data = data, REML = FALSE)
-      
-      # extract estimates
-      return(c(beta_0 = fixef(model)[1], 
-               beta1 = fixef(model)[2], 
-               sigma_u = VarCorr(model)$id[1]))
-    })
-    
-    # get correlations
-    corrs <- cor(t(sims))
-    
-    # 2 is beta0 vs sigmau, 3 is beta1 vs sigmau
-    corrs <- corrs[lower.tri(corrs)][2:3]
-    
-    # store values
-    out[out$n == i, 3] <- corrs
-    
-  }
+  term2 <- -(1/(2 * se2)) * ( sum(data$eq^2) 
+    - ( (su2 / (se2 + m * su2)) * sum(sum_within_id$eq^2))
+    )
   
-  gg <- ggplot(out, aes(x = n, group = beta_vs_sigmau, y = corr, color = beta_vs_sigmau)) + 
-    geom_hline(yintercept = 0, color = "grey70", linetype = "dashed") +
-    geom_line() + 
-    geom_point() + 
-    theme_minimal() + 
-    labs(y = "Correlation", x = "Number of Individuals", color = "Comparison")
-  
-  print(gg)
+  return(term1 + term2)
   
 }
-```
 
-For each number of individual $n = \{10,  25, 50, 75, 100, 150, 200, 250,  300, 350, 400, 450, 500\}$, we will generate data and fit our model 1000 times. Then we will take the correlation of those simulations. 
-
-
-For each simulation, we fix that each individual has $m = 20$ observations and we will fix $\sigma_\epsilon^2 = 1$, $\beta_0 = 1$.
-
-We will vary $\beta_1$ and $\sigma_\gamma^2$.
+obs_info <- - calculus::hessian(f = ll, var = c("beta0" =beta_hats[1] , 
+                                                "beta1" =beta_hats[2], 
+                                                "su2" = sigma_u2_hat, 
+                                                "se2" = sigma_e2_hat))
 
 
-### Case 1: Equal Beta1 and sigma gamma
-
-Here we set $\beta_1 = \sigma^2_\gamma = 1$.
+est_sigma <- solve(obs_info)/50
 
 
-```{r}
-ns <- c(10,  25, 50, 75, 100, 150, 200, 250,  300, 350, 400, 450, 500)
-nsims = 1000
-m = 20
-beta0 = 1
-sigma_e = 1
-set.seed(1)
-```
+dimnames(est_sigma) <- list(c("beta0", "beta1", "su2", "se2"), c("beta0", "beta1", "su2", "se2"))
 
-```{r,eval = F}
-sim0 <- simulation(n = ns, 
-           m = m, beta0 = beta0, sigma_e = sigma_e,
-           beta1 = 1, sigma_u = 1, 
-           num_simulations =nsims)
-saveRDS(sim0, file = "output/sim0.rds")
-```
+est_sigma
 
-```{r}
-readRDS(file ="output/sim0.rds" )
-```
-
-
-### Large Beta1 
-
-
-Here we set $\beta_1 = 10$ and $\sigma^2_\gamma = 1$.
-
-
-```{r, eval = F}
-sim1 <- simulation(n =ns, m = m, beta0 = beta0, beta1 = 10, 
-           sigma_u = 1, sigma_e = sigma_e, num_simulations =nsims)
-saveRDS(sim1, file = "output/sim1.rds")
-
-```
-
-```{r}
-readRDS(file ="output/sim1.rds" )
-```
-
-### Large sigma_u 
-
-Here we set $\beta_1 = 1$ and $\sigma^2_\gamma = 10$.
-
-```{r, eval = F}
-sim2 <- simulation(n = ns, m = m, beta0 = beta0, beta1 = 1, 
-           sigma_u = 10, sigma_e = sigma_e, num_simulations =nsims)
-saveRDS(sim2, file = "output/sim2.rds")
-```
-
-```{r}
-readRDS(file ="output/sim2.rds" )
-```
-
-### Large sigma_u and beta1
-
-Here we set $\beta_1 = 10$ and $\sigma^2_\gamma = 10$.
-
-
-```{r, eval = F}
-sim3 <- simulation(n = ns, m = m, beta0 = beta0, beta1 = 10,
-           sigma_u = 10, sigma_e = sigma_e, num_simulations =nsims)
-saveRDS(sim3, file = "output/sim3.rds")
-```
-
-```{r}
-readRDS(file ="output/sim3.rds" )
 ```
 
 ## Questions
 
+- I am concerned that some of the output are negative.
 
-- Sometimes I get errors regarding singular fit or failed to converge. I am not sure what this means or how to avoid it.
+- When using the estimate $J(\theta)^{-1}/n$, not sure if the $n$ here should be number of individuals, number of observations per individual, or toatl number of observations(number of individuals (times) number of observations per individual). Using number of individuals for now. 
 
-- I think I might try the mixed effects model with random intercept and random slope, to see if it makes a difference
 
-- The take away is that $\sigma_\gamma^2$ and $\beta_1, \beta_0$ are correlated, but I am wondering if we should see a specific pattern as $n$ grows. For example, should we expect that as $n$ increase, correlation is stronger (and in one direction?
+- I use a numeric differentiation package called `calculus` to calculate the Hessian. I read that automatic differentiation is usually better, but there doesn't seem to be great packages to do this in R. It seems like Python might have good packages for this. 
+
+
+<!-- You actually should get a similar answer by conducting 1000 simulated trials each of n users, estimating the fixed effects and the random effects variance for each trial (so you get 1000 of these)  and then calculating sample variances, sample covariances for the 1000 vectors (each vector contains the estimators of the fixed effects, estimators of the random effects variances and estimators of the noise variance). -->
+
+
+<!-- ```{r} -->
+
+
+<!-- out <- replicate(1000, { -->
+
+<!--   data <- generate_data(n = 50, m = 20,  -->
+<!--                       beta0 = 1, beta1 = 2,  -->
+<!--                       sigma_u = 1, sigma_e = 1) -->
+
+<!--         # REML = F ensures we run ML not REML -->
+<!--       model <- lmer(y ~ x + (1 | id), data = data, REML = FALSE) -->
+
+<!--       # extract estimates -->
+<!--       return(c(beta_0 = fixef(model)[1],  -->
+<!--                beta1 = fixef(model)[2],  -->
+<!--                sigma_u = VarCorr(model)$id[1])) -->
+<!-- } -->
+
+
+<!-- ) -->
+
+<!-- cov(t(out)) -->
+<!-- ``` -->
+
+
+
+
+
+
+<!-- # Old -->
+
+
+
+<!-- ## Simulations -->
+
+<!-- Note that I am running a mixed effects model with random intercept, but not random slope.  -->
+
+<!-- ```{r} -->
+<!-- # simulation -->
+<!-- simulation <- function(ns, m, beta0, beta1, sigma_u, sigma_e, num_simulations){ -->
+
+<!--   # we want to construct a dataframe with number of individuals and -->
+<!--   # correlation for beta0 vs sigma_u, correlation for beta1 vs sigma_u -->
+
+<!--   out <- data.frame(n = rep(ns, each = 2),  -->
+<!--                     beta_vs_sigmau = rep(c("beta0_vs_sigmau", "beta1_vs_sigmau"),  length(ns)),  -->
+<!--                     corr = NA_real_) -->
+<!--   # repeat for each individual size n -->
+<!--   for(i in ns){ -->
+
+<!--     # within each individual, repeat (1000?) times -->
+<!--     sims <- replicate(num_simulations, { -->
+
+<!--       # simulate data -->
+<!--       data <- generate_data(i, m, beta0, beta1, sigma_u, sigma_e) -->
+
+<!--       # fit model - this is random intercept, but not random slope -->
+<!--       # REML = F ensures we run ML not REML -->
+<!--       model <- lmer(y ~ x + (1 | id), data = data, REML = FALSE) -->
+
+<!--       # extract estimates -->
+<!--       return(c(beta_0 = fixef(model)[1],  -->
+<!--                beta1 = fixef(model)[2],  -->
+<!--                sigma_u = VarCorr(model)$id[1])) -->
+<!--     }) -->
+
+<!--     # get correlations -->
+<!--     corrs <- cor(t(sims)) -->
+
+<!--     # 2 is beta0 vs sigmau, 3 is beta1 vs sigmau -->
+<!--     corrs <- corrs[lower.tri(corrs)][2:3] -->
+
+<!--     # store values -->
+<!--     out[out$n == i, 3] <- corrs -->
+
+<!--   } -->
+
+<!--   gg <- ggplot(out, aes(x = n, group = beta_vs_sigmau, y = corr, color = beta_vs_sigmau)) +  -->
+<!--     geom_hline(yintercept = 0, color = "grey70", linetype = "dashed") + -->
+<!--     geom_line() +  -->
+<!--     geom_point() +  -->
+<!--     theme_minimal() +  -->
+<!--     labs(y = "Correlation", x = "Number of Individuals", color = "Comparison") -->
+
+<!--   print(gg) -->
+
+<!-- } -->
+<!-- ``` -->
+
+<!-- For each number of individual $n = \{10,  25, 50, 75, 100, 150, 200, 250,  300, 350, 400, 450, 500\}$, we will generate data and fit our model 1000 times. Then we will take the correlation of those simulations.  -->
+
+
+<!-- For each simulation, we fix that each individual has $m = 20$ observations and we will fix $\sigma_\epsilon^2 = 1$, $\beta_0 = 1$. -->
+
+<!-- We will vary $\beta_1$ and $\sigma_\gamma^2$. -->
+
+
+<!-- ### Case 1: Equal Beta1 and sigma gamma -->
+
+<!-- Here we set $\beta_1 = \sigma^2_\gamma = 1$. -->
+
+
+<!-- ```{r} -->
+<!-- ns <- c(10,  25, 50, 75, 100, 150, 200, 250,  300, 350, 400, 450, 500) -->
+<!-- nsims = 1000 -->
+<!-- m = 20 -->
+<!-- beta0 = 1 -->
+<!-- sigma_e = 1 -->
+<!-- set.seed(1) -->
+<!-- ``` -->
+
+<!-- ```{r,eval = F} -->
+<!-- sim0 <- simulation(n = ns,  -->
+<!--            m = m, beta0 = beta0, sigma_e = sigma_e, -->
+<!--            beta1 = 1, sigma_u = 1,  -->
+<!--            num_simulations =nsims) -->
+<!-- saveRDS(sim0, file = "output/sim0.rds") -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- readRDS(file ="output/sim0.rds" ) -->
+<!-- ``` -->
+
+
+<!-- ### Large Beta1  -->
+
+
+<!-- Here we set $\beta_1 = 10$ and $\sigma^2_\gamma = 1$. -->
+
+
+<!-- ```{r, eval = F} -->
+<!-- sim1 <- simulation(n =ns, m = m, beta0 = beta0, beta1 = 10,  -->
+<!--            sigma_u = 1, sigma_e = sigma_e, num_simulations =nsims) -->
+<!-- saveRDS(sim1, file = "output/sim1.rds") -->
+
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- readRDS(file ="output/sim1.rds" ) -->
+<!-- ``` -->
+
+<!-- ### Large sigma_u  -->
+
+<!-- Here we set $\beta_1 = 1$ and $\sigma^2_\gamma = 10$. -->
+
+<!-- ```{r, eval = F} -->
+<!-- sim2 <- simulation(n = ns, m = m, beta0 = beta0, beta1 = 1,  -->
+<!--            sigma_u = 10, sigma_e = sigma_e, num_simulations =nsims) -->
+<!-- saveRDS(sim2, file = "output/sim2.rds") -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- readRDS(file ="output/sim2.rds" ) -->
+<!-- ``` -->
+
+<!-- ### Large sigma_u and beta1 -->
+
+<!-- Here we set $\beta_1 = 10$ and $\sigma^2_\gamma = 10$. -->
+
+
+<!-- ```{r, eval = F} -->
+<!-- sim3 <- simulation(n = ns, m = m, beta0 = beta0, beta1 = 10, -->
+<!--            sigma_u = 10, sigma_e = sigma_e, num_simulations =nsims) -->
+<!-- saveRDS(sim3, file = "output/sim3.rds") -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- readRDS(file ="output/sim3.rds" ) -->
+<!-- ``` -->
+
+<!-- ## Questions -->
+
+
+<!-- - Sometimes I get errors regarding singular fit or failed to converge. I am not sure what this means or how to avoid it. -->
+
+<!-- - I think I might try the mixed effects model with random intercept and random slope, to see if it makes a difference -->
+
+<!-- - The take away is that $\sigma_\gamma^2$ and $\beta_1, \beta_0$ are correlated, but I am wondering if we should see a specific pattern as $n$ grows. For example, should we expect that as $n$ increase, correlation is stronger (and in one direction? -->
+
+
+
+
+
+
