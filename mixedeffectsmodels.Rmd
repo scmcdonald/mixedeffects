@@ -157,7 +157,7 @@ Note that first I had to update the log-likelihood as a function of n individual
 
 $$\ell = -\frac{nm}{2} \log(2\pi) - \frac{n}{2} \left((m-1)\log(\sigma^2_\epsilon) + \log( \sigma^2_\epsilon + m \sigma_\gamma^2) \right)$$
 
-$$-\frac{1}{2\sigma_\epsilon^2} \left[ \sum_{i = 1}^n \sum_{j = 1}^m (y_{ij}  - \beta_0 - \beta_1 x_{ij})^2 -  \frac{\sigma_\gamma^{2} }{\sigma_\epsilon^{2} + m\sigma^{2}_\gamma }  \sum_{i = 1}^n \left(\sum_{j= 1}^m (y_{ij} - \beta_0 - \beta_1 x_{ij})\right)^2 \right]$$
+$$-\frac{1}{2\sigma_{\epsilon}^2} \left[\sum_{i = 1}^n \sum_{j = 1}^m (y_{ij}  - \beta_0 - \beta_1 x_{ij})^2 -\frac{\sigma_{\gamma}^2}{\sigma_{\epsilon}^2 + m\sigma{_\gamma }^2}  \sum_{i = 1}^n \left(\sum_{j= 1}^m (y_{ij} - \beta_0 - \beta_1 x_{ij})\right)^2 \right]$$
 
 ## Simulation
 

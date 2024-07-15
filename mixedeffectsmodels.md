@@ -138,12 +138,12 @@ generate_data(n = 3, m = 2, beta0 = 1, beta1 = 2, sigma_u = 1, sigma_e = 1)
 ```
 
     ##            y          x id
-    ## 1  0.6989395  0.5499558  1
-    ## 2 -1.7039162 -0.8615706  1
-    ## 3  2.1029347  0.9149381  2
-    ## 4 -0.6054760  0.2678015  2
-    ## 5 -1.2023469 -0.8633746  3
-    ## 6 -1.3750198 -1.6511244  3
+    ## 1 -1.2553300 -1.6504243  1
+    ## 2  3.9696681  0.7651066  1
+    ## 3  2.3412615  1.5617534  2
+    ## 4 -0.2144551 -0.5560576  2
+    ## 5 -2.4395102 -0.3997359  3
+    ## 6 -0.6273714 -0.5884306  3
 
 # New work - Steps
 
@@ -166,7 +166,7 @@ file](https://www.overleaf.com/read/jmnzvhwsnwqq#81156c) section 5.1.1.
 
 $$\ell = -\frac{nm}{2} \log(2\pi) - \frac{n}{2} \left((m-1)\log(\sigma^2_\epsilon) + \log( \sigma^2_\epsilon + m \sigma_\gamma^2) \right)$$
 
-$$-\frac{1}{2\sigma_\epsilon^2} \left[ \sum_{i = 1}^n \sum_{j = 1}^m (y_{ij}  - \beta_0 - \beta_1 x_{ij})^2 -  \frac{\sigma_\gamma^{2} }{\sigma_\epsilon^{2} + m\sigma^{2}_\gamma }  \sum_{i = 1}^n \left(\sum_{j= 1}^m (y_{ij} - \beta_0 - \beta_1 x_{ij})\right)^2 \right]$$
+$$-\frac{1}{2\sigma_{\epsilon}^2} \left[\sum_{i = 1}^n \sum_{j = 1}^m (y_{ij}  - \beta_0 - \beta_1 x_{ij})^2 -\frac{\sigma_{\gamma}^2}{\sigma_{\epsilon}^2 + m\sigma{_\gamma }^2}  \sum_{i = 1}^n \left(\sum_{j= 1}^m (y_{ij} - \beta_0 - \beta_1 x_{ij})\right)^2 \right]$$
 
 ## Simulation
 
