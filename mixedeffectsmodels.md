@@ -137,13 +137,13 @@ generate_data <- function(n, m, beta0, beta1, sigma_u, sigma_e) {
 generate_data(n = 3, m = 2, beta0 = 1, beta1 = 2, sigma_u = 1, sigma_e = 1)
 ```
 
-    ##            y           x id
-    ## 1 -1.3230878 -0.46264196  1
-    ## 2  0.5484852  0.46770244  1
-    ## 3  1.7045101  0.45201455  2
-    ## 4  2.1992735 -0.48185459  2
-    ## 5  0.9271895  0.21027488  3
-    ## 6  1.6343597 -0.06601449  3
+    ##            y          x id
+    ## 1  0.6989395  0.5499558  1
+    ## 2 -1.7039162 -0.8615706  1
+    ## 3  2.1029347  0.9149381  2
+    ## 4 -0.6054760  0.2678015  2
+    ## 5 -1.2023469 -0.8633746  3
+    ## 6 -1.3750198 -1.6511244  3
 
 # New work - Steps
 
@@ -151,7 +151,7 @@ generate_data(n = 3, m = 2, beta0 = 1, beta1 = 2, sigma_u = 1, sigma_e = 1)
     log-likelihood.
 
 2.  Extract
-    $\hat{\theta}_{MLE} = (\hat{\beta}_0, \hat{\beta}_1, \hat{\sigma}_{\gamma}^2, \hat{\sigma}_{\epsilon}^2)$
+    $\hat\theta_{MLE} = (\hat\beta_0, \hat\beta_1, \hat\sigma_{\gamma}^2, \hat\sigma_{\epsilon}^2)$
     from the model output.
 
 3.  Plug into function thtat computes
@@ -164,7 +164,7 @@ done it for $n = 3$ amd $m =2$. The final answer is below and the work
 is in the [overleaf
 file](https://www.overleaf.com/read/jmnzvhwsnwqq#81156c) section 5.1.1.
 
-$$    \ell = -\frac{nm}{2} \log(2\pi) - \frac{n}{2} \left((m-1)\log(\sigma^2_\epsilon) + \log( \sigma^2_\epsilon + m \sigma_\gamma^2) \right)$$
+$$\ell = -\frac{nm}{2} \log(2\pi) - \frac{n}{2} \left((m-1)\log(\sigma^2_\epsilon) + \log( \sigma^2_\epsilon + m \sigma_\gamma^2) \right)$$
 
 $$-\frac{1}{2\sigma_\epsilon^2} \left[ \sum_{i = 1}^n \sum_{j = 1}^m (y_{ij}  - \beta_0 - \beta_1 x_{ij})^2 -  \frac{\sigma_\gamma^{2} }{\sigma_\epsilon^{2} + m\sigma^{2}_\gamma }  \sum_{i = 1}^n \left(\sum_{j= 1}^m (y_{ij} - \beta_0 - \beta_1 x_{ij})\right)^2 \right]$$
 

@@ -149,13 +149,13 @@ generate_data(n = 3, m = 2, beta0 = 1, beta1 = 2, sigma_u = 1, sigma_e = 1)
 
 1. Fit model using `lme4`, using the _REML = F_ to optimize log-likelihood. 
 
-2. Extract $\hat{\theta}_{MLE} = (\hat{\beta}_0, \hat{\beta}_1, \hat{\sigma}_{\gamma}^2, \hat{\sigma}_{\epsilon}^2)$ from the model output.
+2. Extract $\hat\theta_{MLE} = (\hat\beta_0, \hat\beta_1, \hat\sigma_{\gamma}^2, \hat\sigma_{\epsilon}^2)$ from the model output.
 
 3. Plug into function thtat computes $\hat{\Sigma} = \frac{1}{n} J(\hat\theta_{MLE})^{-1}$ by taking the Hessian of the log-likelihood, plugs in our MLE, and divided by $n$.
 
 Note that first I had to update the log-likelihood as a function of n individual and m observations per user, because I had previously just done it for $n = 3$ amd $m =2$. The final answer is below and the work is in the [overleaf file](https://www.overleaf.com/read/jmnzvhwsnwqq#81156c) section 5.1.1.
 
-$$    \ell = -\frac{nm}{2} \log(2\pi) - \frac{n}{2} \left((m-1)\log(\sigma^2_\epsilon) + \log( \sigma^2_\epsilon + m \sigma_\gamma^2) \right)$$
+$$\ell = -\frac{nm}{2} \log(2\pi) - \frac{n}{2} \left((m-1)\log(\sigma^2_\epsilon) + \log( \sigma^2_\epsilon + m \sigma_\gamma^2) \right)$$
 
 $$-\frac{1}{2\sigma_\epsilon^2} \left[ \sum_{i = 1}^n \sum_{j = 1}^m (y_{ij}  - \beta_0 - \beta_1 x_{ij})^2 -  \frac{\sigma_\gamma^{2} }{\sigma_\epsilon^{2} + m\sigma^{2}_\gamma }  \sum_{i = 1}^n \left(\sum_{j= 1}^m (y_{ij} - \beta_0 - \beta_1 x_{ij})\right)^2 \right]$$
 
